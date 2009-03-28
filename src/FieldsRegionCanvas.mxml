@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RegionCanvas xmlns="*" xmlns:mx="http://www.adobe.com/2006/mxml" themeColor="#8A6033">
+	<mx:Script>
+		<![CDATA[
+		import mx.states.RemoveChild;
+		import mx.containers.Canvas;
+		import mx.collections.ArrayCollection;
+		
+		private var home:HomeRegionCanvas = null;
+		private var buildings:BuildingsRegionCanvas = null;
+		
+		private const SMALL_PLANT_SIZE:int = 15;
+		private const LARGE_PLANT_SIZE:int = 22;
+		private const HARVESTED_PLANT_SIZE:int = 10;
+		private static const COLOR_BROWN:uint = 0x8a6033;
+		
+		public static const HARVEST_BIN_X:int = 335;
+		public static const HARVEST_BIN_Y:int = 210;
+		
+		private var plants:ArrayCollection = new ArrayCollection();
+		
+		[Bindable]
+		public var foodJustHarvested:Number = 0;
+		
+		public function init(home:HomeRegionCanvas, buildings:BuildingsRegionCanvas):void {
+			if (this.home == null) {
+				this.home = home;
+			}
+			if (this.buildings == null) {
+				this.buildings = buildings;
+			}
+		}
+		
+		public override function onTick(numHere:int, season:int):void
+		{
+			for (var i:int = 0; i < numHere; i++) {
+				focus++;
+				for (var j:int=0; j < buildings.getBuildingBenefit(); j++) {
+					switch (season) {
+						case FFConstants.SEASON_SPRING:
+							createPlant();
+							break;
+						case FFConstants.SEASON_SUMMER:
+							growPlant();
+							break;
+						case FFConstants.SEASON_FALL:
+							harvestPlant();
+							break;
+					}
+				}
+			}
+			if (season == FFConstants.SEASON_WINTER) {
+				rotPlants();
+			}
+			
+		}
+		
+		public function createPlant():void {
+			var can:Canvas = new Canvas();
+			//x="52" y="48" width="16" height="15" backgroundColor="#49AF05" visible="false" id="fieldSprout1"
+			can.width = SMALL_PLANT_SIZE;
+			can.height = SMALL_PLANT_SIZE;
+			can.x = Math.random() * (this.width - 2*LARGE_PLANT_SIZE);
+			can.y = Math.random() * (this.height - 2*LARGE_PLANT_SIZE);
+			can.setStyle("backgroundColor", "#49AF05");
+			can.visible = true;
+			addChild(can);
+			plants.addItem(can);
+		}
+		
+		public function growPlant():void {
+			for each (var plant:Canvas in plants) {
+				if (plant.width == SMALL_PLANT_SIZE) {
+					plant.width = LARGE_PLANT_SIZE;
+					plant.height = LARGE_PLANT_SIZE;
+					plant.setStyle("backgroundColor", "#e15704");
+					
+					break;
+				}
+			}
+		}
+		
+		public function harvestPlant():void {
+			var harvestedPlant:Canvas = null;
+			
+			for each (var p:Canvas in plants) {
+				if (p.width != HARVESTED_PLANT_SIZE) {
+					harvestedPlant = p;
+					break;
+				}
+			}
+			
+			if (harvestedPlant != null) {
+				if (harvestedPlant.width == SMALL_PLANT_SIZE) {
+					foodJustHarvested += FFConstants.SMALL_FOOD_BENEFIT * buildings.getBuildingBenefit();
+				}
+				else if (harvestedPlant.width == LARGE_PLANT_SIZE) {
+					foodJustHarvested += FFConstants.LARGE_FOOD_BENEFIT * buildings.getBuildingBenefit();
+				}
+				
+				harvestedPlant.height = HARVESTED_PLANT_SIZE;
+				harvestedPlant.width = HARVESTED_PLANT_SIZE;
+				moveToBin.play([harvestedPlant]);				
+			} 
+		}
+		
+		public function clearPlants():void {
+			for each (var plant:Canvas in plants) {
+				removeChild(plant);
+			}
+			plants.removeAll();
+		}
+		
+		public function rotPlants():void {
+			// remove harvested plants
+			while (plants.length > 0) {
+				var p:Canvas = plants[0];
+				if (p.width == HARVESTED_PLANT_SIZE) {
+					removeChild(p);
+					plants.removeItemAt(0);
+				}
+				else {
+					break;
+				}
+			}
+			
+			// rot remainder
+			for (var i:int=0; i < buildings.getBuildingBenefit(); i++) {
+				for each (var plant:Canvas in plants) {
+					if (plant.getStyle("backgroundColor") != COLOR_BROWN) {
+						plant.setStyle("backgroundColor", COLOR_BROWN);						
+						break;
+					}
+				}
+			}
+		}
+		]]>
+	</mx:Script>
+	
+	<mx:Move id="moveToBin" xTo="{HARVEST_BIN_X}" yTo="{HARVEST_BIN_Y}" duration="{2*FFConstants.TIME_PER_TICK}" />
+</RegionCanvas>

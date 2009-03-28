@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RegionCanvas xmlns="*" xmlns:mx="http://www.adobe.com/2006/mxml">
+	<mx:Script>
+		<![CDATA[		
+		
+			import mx.containers.Canvas;
+			import mx.collections.ArrayCollection;
+			
+			[Bindable]
+			public var upgradeLevel:int = 0;
+			[Bindable]
+			public var upgradeProgress:Number = 0;
+			
+			private static const BRICK_SIZE:int = 10;
+			private static const BUILDING_WIDTH:int = 5;
+			private static const COLOR_BROWN:uint = 0x8a6033;
+			private static const MAX_BUILDINGS:int = 5;
+			private static const BUILDINGS_START_X:Array = [1* (10 + BRICK_SIZE * BUILDING_WIDTH), 
+															2* (10 + BRICK_SIZE * BUILDING_WIDTH),
+															3* (10 + BRICK_SIZE * BUILDING_WIDTH),
+															4* (10 + BRICK_SIZE * BUILDING_WIDTH),
+															5* (10 + BRICK_SIZE * BUILDING_WIDTH)];
+			//private static const BRICKS_PER_BUILDING:Array = [10, 100, 190, 280, 370];
+			
+			
+			//private var _bricks:ArrayCollection = new ArrayCollection();
+			private var bricks:Array = [new ArrayCollection(), new ArrayCollection(), new ArrayCollection(), 
+										new ArrayCollection(), new ArrayCollection()]; 
+			
+			public function init():void {
+				
+			}
+		
+			public override function onTick(numHere:int, season:int):void {
+				for (var i:int = 0; i < numHere; i++) {
+					focus++;
+					upgradeProgress++;
+					addBrick();
+				}
+				
+				// Buildings wear out (or would if these constants were non-zero
+				if (upgradeProgress >= 1) {
+					upgradeProgress -= FFConstants.SEASONAL_BUILDING_DECAY[season];
+				}
+				
+				// Set new upgradeLevel
+				var testUpgradeLevel:int = 0;
+				while   ((testUpgradeLevel < MAX_BUILDINGS)
+				      && (upgradeProgress > FFConstants.BUILDING_COSTS[testUpgradeLevel])
+				      && (testUpgradeLevel < FFConstants.BUILDING_COSTS.length)) {
+					testUpgradeLevel++;
+				}
+				upgradeLevel = testUpgradeLevel;
+				
+				// Make appropriate buildings visible
+				if (upgradeLevel >= 1) {
+				}
+			}
+			
+			public function getBuildingBenefit():Number {
+				return FFConstants.BUILDING_UPGRADE_BENEFIT[upgradeLevel];
+			}
+			
+			public function addBrick():void {
+				if(upgradeLevel < MAX_BUILDINGS){
+					var can:Canvas = new Canvas();
+					can.width = BRICK_SIZE;
+					can.height = 2*BRICK_SIZE;
+					can.x = -40 + BUILDINGS_START_X[upgradeLevel] + BRICK_SIZE * (bricks[upgradeLevel].length % BUILDING_WIDTH); 
+					can.y = this.height - 2*BRICK_SIZE - 20 - 2*BRICK_SIZE * (bricks[upgradeLevel].length / BUILDING_WIDTH);
+					can.setStyle("backgroundColor", COLOR_BROWN);
+					can.visible = true;
+					addChild(can);
+					bricks[upgradeLevel].addItem(can);
+				}
+			}
+
+		]]>
+	</mx:Script>
+
+
+</RegionCanvas>

@@ -1,0 +1,16 @@
+UNDER THE HOOD
+--------------
+- Moved cursor changes to a particular season, not a particular tick (simplifies the math)
+- Changed speed thresholds from indicating the index of the last season at the old speed to counting the number of seasons that pass before changing the speed
+
+
+
+TODO
+----
+add season sounds to intro
+* sync tempo changes to music better
+add "tutorial" cursor
+* fade out mouse cursor at death
+animate plates toward eaters
+
+Set up GitHub

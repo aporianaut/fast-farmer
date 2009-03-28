@@ -1,0 +1,424 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Application xmlns:mx="http://www.adobe.com/2006/mxml"
+	layout="absolute" creationComplete="init()" xmlns:ns1="*" backgroundColor="#000000">
+	<mx:Script>
+		<![CDATA[
+			import mx.effects.EffectInstance;
+		
+			import mx.effects.TweenEffect;
+            import mx.managers.CursorManager;
+            	
+            [Embed(source="../images/youAdult.gif")]
+            public var YouAdultCursor:Class;        
+            
+            [Embed(source="../images/youBaby.gif")]
+            public var YouBabyCursor:Class;      
+            
+            [Embed(source="../images/youOld.gif")]
+            public var YouOldCursor:Class;        		
+			
+			private var preTickCounter:int = -1;
+			private var preSeasonCounter:int = -1;
+			private var preTicksPerSeason:int = 2;
+			[Bindable]
+			private var seasonCounter:int = -1;
+			private var tickCounter:int = -17;
+			private var ticksPerSeason:int = 32;
+			
+			private var isRunning:Boolean = false;
+			private var isInDeathSequence:Boolean = false;
+			private var musicReady:Boolean = false;
+			private var musicRunning:Boolean = false;
+			private var clock:Timer;
+			private var nextTickDate:Date;
+			
+			private var activeRegion:RegionCanvas = null;
+			
+			private var allVisitors:Array = Visitor.allVisitors;
+			
+			private var fadedCovers:Object = new Object();
+			private var fadedCoverCount:int = 0;
+			
+			private var currentAreaGlow:EffectInstance = null;
+			private var mourners:int;
+			
+			private function init():void {
+				this.setStyle("backgroundColor", FFConstants.WINTER_COLOR);
+				for each (var v:Visitor in allVisitors) {
+					addChild(v);
+				}
+				
+				nextTickDate = new Date();
+				clock = new Timer(1);
+				clock.start();
+				clock.addEventListener(TimerEvent.TIMER, onClock);
+			}
+			
+			/* private function seasonText(season:int):String {
+				switch(seasonCounter % 4){
+					case FFConstants.SEASON_SPRING:
+						return "";//"Spring";
+						break;
+					case FFConstants.SEASON_SUMMER:
+						return "";//"Summer";
+						break;
+					case FFConstants.SEASON_FALL:
+						return "";//"Fall";
+						break;
+					case FFConstants.SEASON_WINTER:
+						return "";//"Winter";
+						break;
+				}
+				return "click to start";
+			} */
+			
+			private function onClock(e:TimerEvent):void {
+				if (new Date().time > nextTickDate.time) {
+					if (isRunning) {
+						onTick();
+					}
+					else {
+						onPreTick();
+					}
+					
+					nextTickDate.time += FFConstants.TIME_PER_TICK;
+				}
+			}
+			
+			private function onPreTick():void {
+				preTickCounter++;
+				if (preTickCounter % preTicksPerSeason == 0) {
+					preSeasonCounter++;
+					switch (preSeasonCounter % 4) {
+						case FFConstants.SEASON_SPRING:
+							fadeOut.play([winterBG]);
+							fadeIn.play([springBG]);
+							activePulse.play([areaFields]);
+							if (isRunning) areaFields.createPlant();
+							break;
+						case FFConstants.SEASON_SUMMER:
+							fadeOut.play([springBG]);
+							fadeIn.play([summerBG]);
+							activePulse.play([areaFields]);
+							if (isRunning) areaFields.growPlant();
+							break;
+						case FFConstants.SEASON_FALL:
+							fadeOut.play([summerBG]);
+							fadeIn.play([fallBG]);
+							activePulse.play([areaFields]);
+							if (isRunning) areaFields.harvestPlant();
+							break;
+						case FFConstants.SEASON_WINTER:
+							fadeOut.play([fallBG]);
+							fadeIn.play([winterBG]);
+							activePulse.play([areaBuildings]);
+							if(isRunning) areaFields.rotPlants();
+							break;
+					}
+				}
+			}
+			
+			private function fadeCover(c:Canvas):void {
+				if (!fadedCovers.hasOwnProperty(c.id)) {
+					longFadeOut.play([c]);
+					fadedCovers[c.id] = true;
+					fadedCoverCount++;
+					
+					if (fadedCoverCount == 5) {
+						onReadyToStart();
+					}
+				}
+			}
+			
+			private function onTick():void {
+				if (musicReady && !musicRunning) {
+					Music.sound.play();
+					musicRunning = true;
+				}
+				tickCounter++;
+				if (tickCounter < 0) {
+					onPreTick();
+				} 
+				else{
+					
+					// send out mourners
+					if (isInDeathSequence) {
+						if (mourners > 0) {
+							var numInBatch:int = Math.random() * 4;
+							for (var i:int=0; i < numInBatch; i++) {
+								addChild(Visitor.newFuneralVisitor());
+							}
+							mourners -= numInBatch;
+						}
+					}
+					
+					switch (tickCounter) {
+						case 0:
+							removeChild(titleScreenImg);
+							removeChild(introBGBottom);
+							removeChild(introBGRight);
+							removeChild(moveCover);
+							removeChild(moveCover1);
+							removeChild(mouseCover);
+							removeChild(mouseCover1);
+							removeChild(toCover);
+							removeChild(toCover1);
+							removeChild(fulfillCover);
+							removeChild(fulfillCover1);
+							removeChild(destinyCover);
+							removeChild(destinyCover1);
+							CursorManager.removeAllCursors();
+							CursorManager.setCursor(YouBabyCursor);
+						default:
+							// Pulse active region on even ticks
+							if ((activeRegion != null) && !(tickCounter % 2)) {
+								activePulse.play([activeRegion]);
+							}
+							
+							// How many people working where?							
+							var partnerRegion:RegionCanvas = null;
+							if (Visitor.partner != null) {
+								for each (var r:RegionCanvas in [areaFields, areaHome, areaBuildings]) {
+									if (r.getBounds(this).contains(Visitor.partner.x, Visitor.partner.y)) {
+										partnerRegion = r;
+									}
+								}
+							}
+							
+							var numInFields:int, numAtHome:int, numAtBuildings:int;
+							numInFields = numAtHome = numAtBuildings = 0;
+							
+							switch (activeRegion) {
+								case areaFields:
+									numInFields++;
+									break;
+								case areaHome:
+									numAtHome++;
+									break;
+								case areaBuildings:
+									numAtBuildings++;
+									break;
+							}
+							
+							switch (partnerRegion) {
+								case areaFields:
+									numInFields++;
+									break;
+								case areaHome:
+									numAtHome++;
+									break;
+								case areaBuildings:
+									numAtBuildings++;
+									break;
+							}
+							
+							// Regions act
+							areaFields.onTick(numInFields, seasonCounter % 4);
+							areaHome.onTick(numAtHome, seasonCounter % 4);
+							areaBuildings.onTick(numAtBuildings, seasonCounter %4);
+							
+							// Visitors act
+							for each (var v:Visitor in allVisitors) {
+								v.onTick((numAtHome != 0), tickCounter);
+							}
+							
+							// Update season if necessary
+							if(tickCounter % ticksPerSeason == 0){
+								seasonCounter++;
+								
+								ticksPerSeason = getSeasonSpeed();
+								
+								// Update cursor and/or start death sequence
+								if (seasonCounter == FFConstants.ADULT_SEASON){
+									CursorManager.removeAllCursors();
+									CursorManager.setCursor(YouAdultCursor);
+								}else if(seasonCounter == FFConstants.OLD_SEASON){
+									CursorManager.removeAllCursors();
+									CursorManager.setCursor(YouOldCursor);
+								}else if(seasonCounter == FFConstants.END_SEASON){
+									CursorManager.removeAllCursors();
+									Mouse.hide();
+									
+									mourners=Visitor.numOfFuneralVisitors();
+									outroBG.visible = true;
+									fadeEnd.play([outroBG]);
+									
+									isInDeathSequence = true;
+								}
+								
+								// Seasonal transitions
+								switch(seasonCounter % 4){
+									case FFConstants.SEASON_SPRING:
+										areaFields.clearPlants();
+										areaHome.storedFood -= areaHome.residents;
+										fadeOut.play([winterBG]);
+										fadeIn.play([springBG]);
+										break;
+									case FFConstants.SEASON_SUMMER:
+										//Summer.sound.play();
+										fadeOut.play([springBG]);
+										fadeIn.play([summerBG]);
+										break;
+									case FFConstants.SEASON_FALL:
+										//Fall.sound.play();
+										fadeOut.play([summerBG]);
+										fadeIn.play([fallBG]);
+										break;
+									case FFConstants.SEASON_WINTER:
+										//Winter.sound.play();
+										areaHome.storedFood += areaFields.foodJustHarvested;
+										areaFields.foodJustHarvested = 0;			
+										fadeOut.play([fallBG]);
+										fadeIn.play([winterBG]);
+										
+										areaFields.rotPlants();
+										break;
+										
+								}
+							}
+					}
+				}
+			}
+			
+			private function getSeasonSpeed():int {
+				var stage:int = 0;
+				
+				while ((stage < FFConstants.SPEED_THRESHOLDS.length) && (seasonCounter >= FFConstants.SPEED_THRESHOLDS[stage])) {
+					stage++;
+				}
+				
+				return FFConstants.TICKS_PER_SEASON_AT_STAGE[stage];
+			}
+			
+			private function onReadyToStart():void {
+				// Fade black covers & title
+				imageFadeOut.play([titleScreenImg]);
+				imageFadeOut.play([introBGBottom]);
+				imageFadeOut.play([introBGRight]);
+				areaFields.visible=true;
+				if (isRunning == false) {
+					isRunning = true;
+					musicReady = true;
+					preSeasonCounter = -1;
+					preTickCounter = -1;
+				}
+			}
+			
+			private function setActiveRegion(region:RegionCanvas):void {
+				activeRegion = region;
+			}
+		]]>
+	</mx:Script>
+	<!-- Season Canvases -->
+	<mx:Canvas width="100%" height="100%"
+		id="winterBG" backgroundColor="{FFConstants.WINTER_COLOR}" backgroundAlpha="0.0">
+	</mx:Canvas>
+	<mx:Canvas width="100%" height="100%"
+		id="springBG" backgroundColor="#99C143" backgroundAlpha="0.0">
+	</mx:Canvas>
+	<mx:Canvas width="100%" height="100%"
+		id="summerBG" backgroundColor="#FEDB37" backgroundAlpha="0.0">
+	</mx:Canvas>
+	<mx:Canvas width="100%" height="100%"
+		id="fallBG" backgroundColor="#E28E17" backgroundAlpha="0.0">
+		<mx:Image id="you" source="../images/you.gif.gif" x="178" y="547.05" width="36.8" height="59.906975" visible="false"/>
+		
+		
+	</mx:Canvas>	
+	<!-- Covering Canvases -->
+	<mx:Canvas id="coveringCanvasRight" backgroundColor="#000000"  left="0" alpha="0.0">
+		
+	</mx:Canvas>
+	
+	<!-- Season transition effects -->
+	<mx:AnimateProperty id="fadeOut"
+    isStyle="true"  
+    property="backgroundAlpha"
+    toValue="0"
+    duration="{FFConstants.TIME_PER_TICK}"/>
+    
+    <mx:AnimateProperty id="longFadeOut"
+    	fromValue="1"
+	    isStyle="true"  
+	    property="backgroundAlpha"
+	    toValue="0"
+	    duration="2000"/>
+
+	<mx:AnimateProperty id="fadeIn"
+		fromValue="0"
+	    isStyle="true"  
+	    property="backgroundAlpha"
+	    toValue="1"
+	    duration="{FFConstants.TIME_PER_TICK}" />
+	<mx:AnimateProperty id="fadeEnd"
+		fromValue="0"
+	    isStyle="true"  
+	    property="backgroundAlpha"
+	    toValue="1"
+	    duration="{FFConstants.TIME_PER_TICK * 24}" />
+	<mx:Fade id="imageFadeOut"
+		alphaFrom="1.0"
+		alphaTo="0.0"
+		duration="3000"
+	/>
+	
+	<mx:Sequence id="activePulse">
+		<mx:AnimateProperty isStyle="true" property="borderThickness" fromValue="2" toValue="7" duration="{FFConstants.TIME_PER_TICK - 150}"/>
+		<mx:AnimateProperty isStyle="true" property="borderThickness" fromValue="7" toValue="2" duration="{FFConstants.TIME_PER_TICK - 150}"/>
+	</mx:Sequence>
+	
+	<mx:SoundEffect id="Music" source="@Embed(source='../sounds/Farmermusic_ver3.mp3')"/>
+
+	<ns1:FieldsRegionCanvas
+		x="15" y="15"
+		width="360" height="235"
+		id="areaFields" borderStyle="solid"
+		borderThickness="2" borderColor="#B7BABC"
+		mouseOver="setActiveRegion(areaFields)" mouseOut="setActiveRegion(null)"
+		creationComplete="{areaFields.init(areaHome, areaBuildings)}"
+		visible="false">
+	</ns1:FieldsRegionCanvas>
+	<ns1:BuildingsRegionCanvas x="390" y="15" width="360" height="235" id="areaBuildings" borderStyle="solid" borderThickness="2"
+		mouseOver="setActiveRegion(areaBuildings)" mouseOut="setActiveRegion(null)"
+		horizontalScrollPolicy="off" verticalScrollPolicy="off">
+	</ns1:BuildingsRegionCanvas>
+	<ns1:HomeRegionCanvas x="390" y="265" width="360" height="235" id="areaHome" borderStyle="solid" borderThickness="2"
+		mouseOver="setActiveRegion(areaHome)" mouseOut="setActiveRegion(null)"
+		horizontalScrollPolicy="off" verticalScrollPolicy="off">
+		<!--<ns1:DinnerPlate x = "10" y="10" />-->
+	</ns1:HomeRegionCanvas>	
+
+	
+	<mx:Canvas x="0" y="515" width="100%" height="100%" id="introBGBottom" backgroundColor="#000000">
+	</mx:Canvas>
+	<mx:Canvas x="765" y="0" width="100%" height="515" id="introBGRight" backgroundColor="#000000">
+	</mx:Canvas>
+	
+	<mx:Canvas id="mouseCover" x="0" y="89" width="264" height="99" backgroundColor="#FFC900">
+	</mx:Canvas>
+	<mx:Canvas id="destinyCover" x="0" y="386" width="285" height="118" backgroundColor="#ffc900">
+	</mx:Canvas>
+	<mx:Canvas id="fulfillCover" x="0" y="284" width="203" height="103" backgroundColor="#FFC900">
+	</mx:Canvas>
+	<mx:Canvas id="toCover" x="3" y="187" width="200" height="98" backgroundColor="#FFC900">
+	</mx:Canvas>
+	<mx:Canvas id="moveCover" x="0" y="0" width="220" height="88" backgroundColor="#FFC900">
+	</mx:Canvas>
+
+	<mx:Image id="titleScreenImg" source="../images/TitleScreen.gif"/>
+	
+	<mx:Canvas id="mouseCover1" x="0" y="89" width="264" height="99" mouseOver="fadeCover(mouseCover)">
+	</mx:Canvas>
+	<mx:Canvas id="destinyCover1" x="0" y="386" width="285" height="118" mouseOver="fadeCover(destinyCover)">
+	</mx:Canvas>
+	<mx:Canvas id="fulfillCover1" x="0" y="284" width="203" height="103" mouseOver="fadeCover(fulfillCover)">
+	</mx:Canvas>
+	<mx:Canvas id="toCover1" x="3" y="187" width="92" height="98" mouseOver="fadeCover(toCover)">
+	</mx:Canvas>
+	<mx:Canvas id="moveCover1" x="0" y="0" width="220" height="88" mouseOver="fadeCover(moveCover)">
+	</mx:Canvas>
+	
+	<mx:Canvas x="0" y="0" width="100%" height="100%" id="outroBG" backgroundColor="#000000" visible="false" backgroundAlpha="0.0">
+	</mx:Canvas>
+	
+</mx:Application>

@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RegionCanvas xmlns="*" xmlns:mx="http://www.adobe.com/2006/mxml" creationComplete="init();" horizontalScrollPolicy="off" verticalScrollPolicy="off">
+	<mx:Script>
+		<![CDATA[
+			[Bindable]
+			public var _storedFood:Number = FFConstants.STARTING_FOOD;
+			public static var theHome:HomeRegionCanvas;
+			public var residents:int = 1;
+			public var plates:Array = new Array();
+			public static const PLATES_PER_ROW:int = 3;
+			public static const PLATES_PER_COL:int = 7;
+			
+			public static const PULSE_TIME:int = 2*FFConstants.TIME_PER_TICK;
+			
+			public function init():void {
+				theHome=this;
+				
+				var dinnerplate:DinnerPlate;
+				for (var j:int = 0; j < PLATES_PER_COL; j++){
+					for (var i:int = 0; i < PLATES_PER_ROW; i++){
+						dinnerplate = new DinnerPlate();
+						dinnerplate.x = this.width - 1.2 * dinnerplate.width * (i+1);
+						dinnerplate.y = this.height - 1.2 * dinnerplate.height * (j+1) + 5;
+						addChild(dinnerplate);
+						plates.push(dinnerplate);
+					}
+				}
+				
+			}
+			
+			public function set storedFood(food:int):void {
+				_storedFood = food;
+				
+				for (var i:int; i < plates.length; i++) {
+					if (food >= 4) {
+						plates[i].redraw(4);
+						food -= 4;
+					}
+					else if (food > 0 ) {
+						plates[i].redraw(food);
+						food = 0;
+					}
+					else {
+						plates[i].redraw(0);
+					}
+				}
+				
+					
+			}
+			
+			public function get storedFood():int {
+				return _storedFood;
+			}
+			
+			// numWorkers not used
+			public override function onTick(numWorkers:int, season:int):void {
+				focus += numWorkers;			
+			}
+			
+			public static function lovePulse(color:uint):void {
+				theHome.setStyle("backgroundColor", color);
+				theHome.alphaPulse.play([theHome]);
+			}
+		]]>
+	</mx:Script>
+	
+	<mx:Sequence id="alphaPulse">
+		<mx:AnimateProperty isStyle="true"
+		    property="backgroundAlpha"
+		    fromValue="0.0"
+		    toValue=".1"
+		    duration="{PULSE_TIME}" />
+		<mx:AnimateProperty isStyle="true"
+		    property="backgroundAlpha"
+		    fromValue=".1"
+		    toValue="0.0"
+		    duration="{PULSE_TIME}" />
+	</mx:Sequence>
+</RegionCanvas>

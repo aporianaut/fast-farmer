@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="400" height="300">
+	<mx:Script>
+		<![CDATA[
+			public function onTick(numWorkingHere:int, season:int):void {
+			};
+			[Bindable]
+			public var focus:int = 0;		
+		]]>
+	</mx:Script>
+</mx:Canvas>
